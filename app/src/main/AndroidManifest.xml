@@ -8,13 +8,19 @@
             android:label="@string/app_name"
             android:supportsRtl="true"
             android:theme="@style/AppTheme">
+
         <activity android:name=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
-
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+
+        <!-- Xposed -->
+        <meta-data android:name="xposedmodule" android:value="true"/>
+        <meta-data android:name="xposeddescription" android:value="Module to Pass SafetyNet Attestation with Xposed Installed"/>
+        <meta-data android:name="xposedminversion" android:value="53"/>
+
     </application>
 
 </manifest>
