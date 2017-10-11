@@ -1,11 +1,13 @@
 package com.liamcottle.xposed.safetynet.fragment;
 
 import android.app.Activity;
+import android.app.ActivityManager;
+import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
-import android.support.v4.app.Fragment;
 import android.support.v7.widget.DividerItemDecoration;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -14,15 +16,18 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import com.liamcottle.xposed.safetynet.preferences.Preferences;
+import com.afollestad.materialdialogs.DialogAction;
+import com.afollestad.materialdialogs.GravityEnum;
+import com.afollestad.materialdialogs.MaterialDialog;
 import com.liamcottle.xposed.safetynet.R;
 import com.liamcottle.xposed.safetynet.adapter.PackagesAdapter;
 import com.liamcottle.xposed.safetynet.comparator.PackageInfoComparator;
+import com.liamcottle.xposed.safetynet.preferences.Preferences;
 
 import java.util.Collections;
 import java.util.List;
 
-public class PackagesFragment extends Fragment {
+public class PackagesFragment extends XposedSafetyNetFragment {
 
     private Activity mActivity;
 
@@ -83,12 +88,59 @@ public class PackagesFragment extends Fragment {
                 // update adapter
                 mPackagesAdapter.notifyDataSetChanged();
 
+                // ask to kill package's process
+                askToKillPackageProcess(packageName);
+
             }
         });
 
         loadPackages();
 
         return view;
+
+    }
+
+    private void killProcess(String packageName) {
+
+        // get activity manager
+        ActivityManager activityManager = (ActivityManager) mActivity.getSystemService(Context.ACTIVITY_SERVICE);
+
+        // kill processes by package name
+        activityManager.killBackgroundProcesses(packageName);
+
+    }
+
+    private void launchPackage(String packageName) {
+
+        try {
+            startActivity(mActivity.getPackageManager().getLaunchIntentForPackage(packageName));
+        } catch(Exception ignore){}
+
+    }
+
+    private void askToKillPackageProcess(final String packageName) {
+
+        MaterialDialog.Builder builder = new MaterialDialog.Builder(mActivity);
+        builder.title(R.string.title_kill_process);
+        builder.content(R.string.info_kill_process);
+        builder.positiveText(R.string.button_kill_process);
+        builder.negativeText(R.string.button_kill_process_and_launch);
+        builder.neutralText(R.string.button_dismiss);
+        builder.btnStackedGravity(GravityEnum.CENTER);
+        builder.onPositive(new MaterialDialog.SingleButtonCallback() {
+            @Override
+            public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
+                killProcess(packageName);
+            }
+        });
+        builder.onNegative(new MaterialDialog.SingleButtonCallback() {
+            @Override
+            public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
+                killProcess(packageName);
+                launchPackage(packageName);
+            }
+        });
+        showDialog(builder.build());
 
     }
 
