@@ -2,6 +2,8 @@ package com.liamcottle.xposed.safetynet.hooks;
 
 import android.annotation.SuppressLint;
 import android.app.AndroidAppHelper;
+import android.app.Application;
+import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.os.StrictMode;
@@ -11,6 +13,7 @@ import com.liamcottle.xposed.safetynet.api.response.AttestationAttestResponse;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XC_MethodReplacement;
 import de.robv.android.xposed.XposedBridge;
+import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 import retrofit2.Response;
 
@@ -54,105 +57,113 @@ public class SafetyNetHook extends Hook {
     @Override
     public void load() throws Throwable {
 
-        // find classes
-        mSafetyNetClass = findClass("com.google.android.gms.safetynet.SafetyNet");
-        mSafetyNetApiImplClass = mSafetyNetClass.getDeclaredField("SafetyNetApi").get(null).getClass();
-        mGoogleApiClientClass = findClass("com.google.android.gms.common.api.GoogleApiClient");
-        mAttestationResultClass = findClass("com.google.android.gms.safetynet.SafetyNetApi.AttestationResult");
-        mAttestationResultImplClass = findAttestationResultImplClass();
-        mStatusClass = findStatusClass();
-
-        // find constructors
-        mStatusConstructor = mStatusClass.getDeclaredConstructor(int.class);
-
-        // find methods
-        mAttestMethod = mSafetyNetApiImplClass.getDeclaredMethod("attest", mGoogleApiClientClass, byte[].class);
-        mGetStatusMethod = mAttestationResultImplClass.getDeclaredMethod("getStatus");
-        mGetJwsResultMethod = mAttestationResultImplClass.getDeclaredMethod("getJwsResult");
-
-        // hook AttestationResult getStatus method
-        XposedBridge.hookMethod(mGetStatusMethod, new XC_MethodReplacement() {
+        // hook application attach
+        XposedHelpers.findAndHookMethod(Application.class, "attach", Context.class, new XC_MethodHook() {
             @Override
-            protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
+            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
 
-                // check if cached attestation is null
-                if(sCachedAttestation == null || sCachedAttestation.isEmpty()){
+                // find classes
+                mSafetyNetClass = findClass("com.google.android.gms.safetynet.SafetyNet");
+                mSafetyNetApiImplClass = mSafetyNetClass.getDeclaredField("SafetyNetApi").get(null).getClass();
+                mGoogleApiClientClass = findClass("com.google.android.gms.common.api.GoogleApiClient");
+                mAttestationResultClass = findClass("com.google.android.gms.safetynet.SafetyNetApi.AttestationResult");
+                mAttestationResultImplClass = findAttestationResultImplClass();
+                mStatusClass = findStatusClass();
 
-                    // return new Status with code 8 (INTERNAL_ERROR)
-                    mStatusConstructor.setAccessible(true);
-                    return mStatusConstructor.newInstance(8);
+                // find constructors
+                mStatusConstructor = mStatusClass.getDeclaredConstructor(int.class);
 
-                }
+                // find methods
+                mAttestMethod = mSafetyNetApiImplClass.getDeclaredMethod("attest", mGoogleApiClientClass, byte[].class);
+                mGetStatusMethod = mAttestationResultImplClass.getDeclaredMethod("getStatus");
+                mGetJwsResultMethod = mAttestationResultImplClass.getDeclaredMethod("getJwsResult");
 
-                // return new Status with code 0 (SUCCESS)
-                mStatusConstructor.setAccessible(true);
-                return mStatusConstructor.newInstance(0);
+                // hook AttestationResult getStatus method
+                XposedBridge.hookMethod(mGetStatusMethod, new XC_MethodReplacement() {
+                    @Override
+                    protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
 
-            }
-        });
+                        // check if cached attestation is null
+                        if(sCachedAttestation == null || sCachedAttestation.isEmpty()){
 
-        // hook AttestationResult getJwsResult method
-        XposedBridge.hookMethod(mGetJwsResultMethod, new XC_MethodHook() {
-            @Override
-            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                            // return new Status with code 8 (INTERNAL_ERROR)
+                            mStatusConstructor.setAccessible(true);
+                            return mStatusConstructor.newInstance(8);
 
-                // return cached attestation
-                param.setResult(sCachedAttestation);
+                        }
 
-            }
-        });
+                        // return new Status with code 0 (SUCCESS)
+                        mStatusConstructor.setAccessible(true);
+                        return mStatusConstructor.newInstance(0);
 
-        // hook attest method
-        XposedBridge.hookMethod(mAttestMethod, new XC_MethodHook() {
-            @Override
-            protected void beforeHookedMethod(MethodHookParam methodHookParam) throws Throwable {
-
-                try {
-
-                    // get nonce from attest method call
-                    byte[] nonce = (byte[]) methodHookParam.args[1];
-
-                    // get current thread policy
-                    StrictMode.ThreadPolicy oldThreadPolicy = StrictMode.getThreadPolicy();
-
-                    // change thread policy to allow network on main thread
-                    StrictMode.setThreadPolicy(new StrictMode.ThreadPolicy.Builder().permitAll().build());
-
-                    // get attestation from api
-                    Response<AttestationAttestResponse> response = AttestationAPIFactory.api().attest(
-                            Base64.encodeToString(nonce, Base64.DEFAULT),
-                            AndroidAppHelper.currentPackageName(),
-                            getApkDigest(),
-                            getApkCertificateDigest()
-                    ).execute();
-
-                    // revert thread policy
-                    StrictMode.setThreadPolicy(oldThreadPolicy);
-
-                    // check if response was successful
-                    if(!response.isSuccessful()){
-                        throw new Exception("Attestation was not Successful");
                     }
+                });
 
-                    // get parsed attestation attest response
-                    AttestationAttestResponse attestationAttestResponse = response.body();
+                // hook AttestationResult getJwsResult method
+                XposedBridge.hookMethod(mGetJwsResultMethod, new XC_MethodHook() {
+                    @Override
+                    protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
 
-                    // check if attestation attest response is ok
-                    if(!attestationAttestResponse.isOk()){
-                        throw new Exception(attestationAttestResponse.getMessage());
+                        // return cached attestation
+                        param.setResult(sCachedAttestation);
+
                     }
+                });
 
-                    // set cached attestation
-                    sCachedAttestation = attestationAttestResponse.getAttestation();
+                // hook attest method
+                XposedBridge.hookMethod(mAttestMethod, new XC_MethodHook() {
+                    @Override
+                    protected void beforeHookedMethod(MethodHookParam methodHookParam) throws Throwable {
 
-                } catch(Throwable throwable) {
+                        try {
 
-                    throwable.printStackTrace();
+                            // get nonce from attest method call
+                            byte[] nonce = (byte[]) methodHookParam.args[1];
 
-                    // unset cached attestation which will cause a status of 8 (INTERNAL_ERROR)
-                    sCachedAttestation = null;
+                            // get current thread policy
+                            StrictMode.ThreadPolicy oldThreadPolicy = StrictMode.getThreadPolicy();
 
-                }
+                            // change thread policy to allow network on main thread
+                            StrictMode.setThreadPolicy(new StrictMode.ThreadPolicy.Builder().permitAll().build());
+
+                            // get attestation from api
+                            Response<AttestationAttestResponse> response = AttestationAPIFactory.api().attest(
+                                    Base64.encodeToString(nonce, Base64.DEFAULT),
+                                    AndroidAppHelper.currentPackageName(),
+                                    getApkDigest(),
+                                    getApkCertificateDigest()
+                            ).execute();
+
+                            // revert thread policy
+                            StrictMode.setThreadPolicy(oldThreadPolicy);
+
+                            // check if response was successful
+                            if(!response.isSuccessful()){
+                                throw new Exception("Attestation was not Successful");
+                            }
+
+                            // get parsed attestation attest response
+                            AttestationAttestResponse attestationAttestResponse = response.body();
+
+                            // check if attestation attest response is ok
+                            if(!attestationAttestResponse.isOk()){
+                                throw new Exception(attestationAttestResponse.getMessage());
+                            }
+
+                            // set cached attestation
+                            sCachedAttestation = attestationAttestResponse.getAttestation();
+
+                        } catch(Throwable throwable) {
+
+                            throwable.printStackTrace();
+
+                            // unset cached attestation which will cause a status of 8 (INTERNAL_ERROR)
+                            sCachedAttestation = null;
+
+                        }
+
+                    }
+                });
 
             }
         });
