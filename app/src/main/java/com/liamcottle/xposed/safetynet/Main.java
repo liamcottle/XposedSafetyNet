@@ -2,7 +2,9 @@ package com.liamcottle.xposed.safetynet;
 
 import com.liamcottle.xposed.safetynet.hooks.Hook;
 import com.liamcottle.xposed.safetynet.hooks.SafetyNetHook;
+import com.liamcottle.xposed.safetynet.preferences.Preferences;
 import de.robv.android.xposed.IXposedHookLoadPackage;
+import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 import java.util.ArrayList;
@@ -12,14 +14,16 @@ public class Main implements IXposedHookLoadPackage {
 
     private XC_LoadPackage.LoadPackageParam mLoadPackageParam;
 
-    /**
-     * @return list of package names that the hooks should be loaded in
-     */
-    private List<String> getWhiteListedPackageNames() {
-        List<String> packageNames = new ArrayList<>();
-        packageNames.add("com.snapchat.android");
-        packageNames.add("com.scottyab.safetynet.sample");
-        return packageNames;
+    private void log(String message, Object... formatArgs) {
+        // [XposedSafetyNet.Main] message
+        message = String.format("[XposedSafetyNet.Main] %s", message);
+        XposedBridge.log(String.format(message, formatArgs));
+    }
+
+    private void logWithPackage(String packageName, String message, Object... formatArgs) {
+        // [XposedSafetyNet.Main] [com.example.app] message
+        message = String.format("[%s] %s", packageName, message);
+        log(message, formatArgs);
     }
 
     private List<Hook> getHooks() {
@@ -34,27 +38,41 @@ public class Main implements IXposedHookLoadPackage {
         // cache loaded package param
         mLoadPackageParam = loadPackageParam;
 
-        // if loaded package is not whitelisted, do nothing
-        if(!getWhiteListedPackageNames().contains(mLoadPackageParam.packageName)){
+        // get loaded package name
+        String packageName = loadPackageParam.packageName;
+
+        // get enabled package names
+        List<String> enabledPackageNames = Preferences.PACKAGE_NAMES_ENABLED.withinXposed().stringListValue();
+
+        // if loaded package is not in list of enabled package names, do nothing
+        if(!enabledPackageNames.contains(packageName)){
             return;
         }
+
+        logWithPackage(packageName, "Loading Hooks");
 
         // load hooks
         for(Hook hook : getHooks()){
 
             try {
 
+                logWithPackage(packageName, "Loading Hook: %s", hook.tag());
+
                 // load hook
                 hook.load();
 
+                logWithPackage(packageName, "Hook Loaded: %s", hook.tag());
+
             } catch(Throwable throwable) {
 
-                // failed to load hook
-                throwable.printStackTrace();
+                logWithPackage(packageName, "Failed to load Hook '%s': %s", hook.tag(), throwable.getMessage());
+                XposedBridge.log(throwable);
 
             }
 
         }
+
+        logWithPackage(packageName, "Hooks Loaded");
 
     }
 

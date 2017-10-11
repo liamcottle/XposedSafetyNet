@@ -155,10 +155,10 @@ public class SafetyNetHook extends Hook {
 
                         } catch(Throwable throwable) {
 
-                            throwable.printStackTrace();
-
                             // unset cached attestation which will cause a status of 8 (INTERNAL_ERROR)
                             sCachedAttestation = null;
+
+                            XposedBridge.log(throwable);
 
                         }
 
@@ -193,6 +193,7 @@ public class SafetyNetHook extends Hook {
             return Base64.encodeToString(digest.digest(), Base64.DEFAULT);
 
         } catch (Exception e) {
+            XposedBridge.log(e);
             return null;
         }
 
@@ -214,7 +215,9 @@ public class SafetyNetHook extends Hook {
                 return Base64.encodeToString(digest.digest(packageInfo.signatures[0].toByteArray()), Base64.DEFAULT);
             }
 
-        } catch (Exception ignore){}
+        } catch (Exception e){
+            XposedBridge.log(e);
+        }
 
         return null;
 

@@ -1,7 +1,8 @@
-package com.liamcottle.xposed.safetynet;
+package com.liamcottle.xposed.safetynet.activity;
 
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import com.liamcottle.xposed.safetynet.R;
 
 public class MainActivity extends AppCompatActivity {
 

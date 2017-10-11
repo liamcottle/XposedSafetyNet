@@ -16,7 +16,8 @@ public abstract class Hook {
     public abstract void load() throws Throwable;
 
     public void log(String message, Object... formatArgs) {
-        message = String.format("[%s] %s", tag(), message);
+        // [XposedSafetyNet.Hook] [com.example.app] [tag] message
+        message = String.format("[XposedSafetyNet.Hook] [%s] [%s] %s", mLoadedPackageParam.packageName, tag(), message);
         XposedBridge.log(String.format(message, formatArgs));
     }
 
