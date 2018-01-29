@@ -25,3 +25,7 @@ You will need to provide me with a list of application package names you want to
 I will provision an API Key and whitelist package names that I approve.
 
 Packages that are not approved on my end will be rejected access to Attestations.
+
+## Demo
+
+![Demo](capture.gif)
