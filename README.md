@@ -4,6 +4,8 @@ This is an Xposed Module that intercepts SafetyNet Attestation calls and passes 
 
 It allows you to use Android applications which use Google SafetyNet Attestation on a device that fails the SafetyNet check. (Usually due to Root or Xposed being installed)
 
+Note: This module communicates with an external API maintained by me, which provides the valid attestations on demand. This external API is closed source and is not free.
+
 ## How to Use ?
 
 - Obtain an API Key
