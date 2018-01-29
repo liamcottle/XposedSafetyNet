@@ -9,7 +9,7 @@ Note: This module communicates with an external API maintained by me, which prov
 ## How to Use ?
 
 - Obtain an API Key
-- Install XposedSafetyNet APK from Releases
+- Install XposedSafetyNet APK from [Releases](https://github.com/liamcottle/XposedSafetyNet/releases)
 - Enable XposedSafetyNet in Xposed Modules
 - Launch XposedSafetyNet
     - Set your API Key
