@@ -2,6 +2,7 @@
 
     <string name="app_name">XposedSafetyNet</string>
 
+    <string name="title_api_key">API Key</string>
     <string name="title_kill_process">Kill Process</string>
     <string name="info_kill_process">The package you just enabled/disabled needs to be killed to load/unload the hooks. Do you want to kill the process now?</string>
 

@@ -12,7 +12,7 @@ import java.util.List;
 
 public enum Preferences {
 
-    // package names enabled
+    API_KEY("api_key", String.class, null),
     PACKAGE_NAMES_ENABLED("package_names_enabled", List.class, new ArrayList<>());
 
     private String mKey;

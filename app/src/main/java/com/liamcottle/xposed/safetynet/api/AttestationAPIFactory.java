@@ -2,6 +2,8 @@ package com.liamcottle.xposed.safetynet.api;
 
 import android.app.AndroidAppHelper;
 import android.content.pm.PackageInfo;
+import android.text.TextUtils;
+import com.liamcottle.xposed.safetynet.preferences.Preferences;
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -34,7 +36,12 @@ public class AttestationAPIFactory {
                 request.header("Accept-Language", acceptLanguage());
                 request.header("Accept-Locale", acceptLocale());
                 request.header("User-Agent", userAgent());
-                request.header("X-API-Key", "xposedsafetynet");
+
+                // add api key
+                String apiKey = Preferences.API_KEY.withinXposed().stringValue();
+                if(!TextUtils.isEmpty(apiKey)){
+                    request.header("X-API-Key", apiKey);
+                }
 
                 return chain.proceed(request.build());
 
